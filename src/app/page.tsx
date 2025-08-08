@@ -111,7 +111,7 @@ export default function Home() {
               onClick={testModal}
               className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
             >
-              Test Modal
+Create New Polygon
             </button>
           </div>
         </div>

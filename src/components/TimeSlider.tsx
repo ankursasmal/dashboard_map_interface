@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Range } from 'react-range';
+import { Range,getTrackBackground } from 'react-range';
 import { addDays, addHours, format } from 'date-fns';
 import { Button } from 'antd';
 import useStore from '@/store/useStore';
@@ -23,24 +23,12 @@ const TimeSlider: React.FC = () => {
   // Calculate the total hours in the range (-15 days to +15 days = 30 days = 720 hours)
   const totalHours = 720; // 30 days * 24 hours
   
-  // Use a fixed date to avoid hydration issues, then update on client
+  // Use useMemo for centerDate to avoid dependency issues
   const centerDate = useMemo(() => {
     return isClient ? new Date() : new Date('2024-01-01T12:00:00Z');
   }, [isClient]);
 
-  // All useEffect hooks must be called before any early returns
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (isClient) {
-      setSingleValues([getCurrentSliderValue()]);
-      setRangeValues(getRangeSliderValues());
-    }
-  }, [currentTime, selectedTimeRange, isClient]);
-  
-  // Helper functions - moved before useEffect to fix dependency warnings
+  // Helper functions - must be declared before useEffect that uses them
   const getCurrentSliderValue = useCallback((): number => {
     try {
       let timeToUse: Date;
@@ -105,6 +93,30 @@ const TimeSlider: React.FC = () => {
     }
   }, [selectedTimeRange, centerDate, totalHours]);
 
+  // All useEffect hooks must be called before early returns
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      // Only update if values are significantly different to avoid overriding user interactions
+      const currentSliderValue = getCurrentSliderValue();
+      const currentRangeValues = getRangeSliderValues();
+      
+      // Only update single values if significantly different
+      if (Math.abs(singleValues[0] - currentSliderValue) > 1) {
+        setSingleValues([currentSliderValue]);
+      }
+      
+      // Only update range values if significantly different
+      if (Math.abs(rangeValues[0] - currentRangeValues[0]) > 1 || 
+          Math.abs(rangeValues[1] - currentRangeValues[1]) > 1) {
+        setRangeValues(currentRangeValues);
+      }
+    }
+  }, [isClient, getCurrentSliderValue, getRangeSliderValues, singleValues, rangeValues]);
+  
   // Validate center date
   if (isNaN(centerDate.getTime())) {
     console.error('Invalid center date');
@@ -144,6 +156,7 @@ const TimeSlider: React.FC = () => {
   };
 
   const handleRangeValueChange = (values: number[]) => {
+    console.log('Range values changing:', values); // Debug log
     setRangeValues(values);
     const startTime = sliderValueToDate(values[0]);
     const endTime = sliderValueToDate(values[1]);
@@ -151,10 +164,11 @@ const TimeSlider: React.FC = () => {
   };
 
   const toggleSliderMode = () => {
-    setSliderMode(sliderMode.type === 'single'
-      ? { type: 'range', rangeValues: [0, 720] }
-      : { type: 'single', singleValue: 360 }
-    );
+    const newMode = sliderMode.type === 'single'
+      ? { type: 'range' as const, rangeValues: [rangeValues[0], rangeValues[1]] as [number, number] }
+      : { type: 'single' as const, singleValue: singleValues[0] };
+    
+    setSliderMode(newMode);
   };
 
   return (
@@ -185,7 +199,15 @@ const TimeSlider: React.FC = () => {
                 renderTrack={({ props, children }) => (
                   <div
                     {...props}
-                    className="w-full h-2 bg-gray-200 rounded-full"
+                    className="w-full h-2 rounded-full"
+                    style={{
+                      background: getTrackBackground({
+                        values: singleValues,
+                        colors: ['#ef4444', '#e5e7eb'],
+                        min: 0,
+                        max: totalHours - 1
+                      })
+                    }}
                   >
                     {children}
                   </div>
@@ -193,7 +215,17 @@ const TimeSlider: React.FC = () => {
                 renderThumb={({ props }) => (
                   <div
                     {...props}
-                    className="w-4 h-4 bg-blue-500 rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    style={{
+                      ...props.style,
+                      height: '16px',
+                      width: '16px',
+                      borderRadius: '50%',
+                      backgroundColor: '#3b82f6',
+                      border: '2px solid white',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                      cursor: 'pointer',
+                      zIndex: 10
+                    }}
                   />
                 )}
               />
@@ -215,7 +247,15 @@ const TimeSlider: React.FC = () => {
                 renderTrack={({ props, children }) => (
                   <div
                     {...props}
-                    className="w-full h-2 bg-gray-200 rounded-full"
+                    className="w-full h-2 rounded-full bg-gray-200"
+                    style={{
+                      background: getTrackBackground({
+                        values: rangeValues,
+                        colors: ['#e5e7eb', '#ef4444', '#e5e7eb'],
+                        min: 0,
+                        max: totalHours - 1
+                      })
+                    }}
                   >
                     {children}
                   </div>
@@ -223,11 +263,28 @@ const TimeSlider: React.FC = () => {
                 renderThumb={({ props, index }) => (
                   <div
                     {...props}
-                    className={`w-4 h-4 rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-opacity-50 ${
-                      index === 0 
-                        ? 'bg-green-500 focus:ring-green-500' 
-                        : 'bg-red-500 focus:ring-red-500'
-                    }`}
+                    key={index}
+                    style={{
+                      ...props.style,
+                      height: '18px',
+                      width: '18px',
+                      borderRadius: '50%',
+                      backgroundColor: index === 0 ? '#10b981' : '#ef4444',
+                      border: '2px solid white',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                      cursor: 'grab',
+                      zIndex: 1000,
+                      position: 'absolute',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      display: 'block'
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.cursor = 'grabbing';
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.cursor = 'grab';
+                    }}
                   />
                 )}
               />

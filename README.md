@@ -98,7 +98,7 @@ src/
     └── index.ts             # TypeScript type definitions
 ```
 
-## 🔧 Tech Stack
+## 🔧 Tech StacK
 
 - **Framework**: Next.js 14 with App Router
 - **Language**: TypeScript
