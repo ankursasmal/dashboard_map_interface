@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST='{"app/page.tsx -> @/components/Map":{"id":3991,"files":["static/css/fc1c9daac70c093b.css","static/chunks/d0deef33.afff9b3bf7059c8b.js","static/chunks/991.aba25f2b17a9e19e.js"]},"app/page.tsx -> @/components/TimeSlider":{"id":9887,"files":["static/chunks/858.067d39ac6a327052.js","static/chunks/887.f1804eb1cbb76f9f.js"]}}';
